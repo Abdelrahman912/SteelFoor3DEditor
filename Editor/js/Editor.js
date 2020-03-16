@@ -1,5 +1,9 @@
 function Grid(scene, spaceX, spaceZ, numberInX, numberInZ) {
     let shift = 50 / 2;
+    this.spaceX = spaceX;
+    this.spaceZ = spaceZ;
+    this.numberInX = numberInX;
+    this.numberInZ = numberInZ;
     this.lineLengthInX = spaceX * (numberInX - 1) + 2 * shift;
     this.lineLengthInZ = spaceZ * (numberInZ - 1) + 2 * shift;
     this.linesInX = [];
@@ -36,23 +40,23 @@ function Line(scene, startPoint, direction, length) {
     scene.add(this.line);
 }
 
-function Solid(scene, startPoint, dimensions, rotation, color) {
-    this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
-    this.dimensions = dimensions || new THREE.Vector3(2, 0.1, 100);
-    this.rotation = rotation || new THREE.Vector3(0, 0, 0);
-    this.color = color || 0xffafaf;
-    let geometry = new THREE.BoxGeometry(1, 1, 1);
-    let material = new THREE.MeshPhongMaterial({
-        color: this.color,
-        side: THREE.DoubleSide
-    });
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.position.set(this.startPoint.x, this.startPoint.y, this.startPoint.z + this.dimensions.z / 2);
-    this.mesh.scale.set(this.dimensions.x, this.dimensions.y, this.dimensions.z);
-    this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
-    this.mesh.userData = this;
-    scene.add(this.mesh);
-}
+// function Solid(scene, startPoint, dimensions, rotation, color) { //
+//     this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
+//     this.dimensions = dimensions || new THREE.Vector3(2, 0.1, 100);
+//     this.rotation = rotation || new THREE.Vector3(0, 0, 0);
+//     this.color = color || 0xffafaf;
+//     let geometry = new THREE.BoxGeometry(1, 1, 1);
+//     let material = new THREE.MeshPhongMaterial({
+//         color: this.color,
+//         side: THREE.DoubleSide
+//     });
+//     this.mesh = new THREE.Mesh(geometry, material);
+//     this.mesh.position.set(this.startPoint.x, this.startPoint.y, this.startPoint.z + this.dimensions.z / 2);
+//     this.mesh.scale.set(this.dimensions.x, this.dimensions.y, this.dimensions.z);
+//     this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+//     this.mesh.userData = this;
+//     scene.add(this.mesh);
+// }
 
 function Section(clearHeight, flangeWidth, webThickness, flangeThickness) {
     this.clearHeight = clearHeight || 2;
@@ -63,6 +67,7 @@ function Section(clearHeight, flangeWidth, webThickness, flangeThickness) {
 
 function ISection(scene, section, startPoint, length) {
     this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
+    this.rotation = new THREE.Vector3(0, 0, 0);
     this.length = length || 100;
     this.section = section || new Section();
     let material = new THREE.MeshPhongMaterial({
@@ -99,7 +104,47 @@ function ISection(scene, section, startPoint, length) {
     this.move = function (position) {
         this.startPoint = position || this.startPoint;
         this.mesh.position.set(this.startPoint.x, this.startPoint.y, this.startPoint.z);
-    }
+    };
+    this.rotate = function (rotation) {
+        this.rotation = rotation || this.rotation;
+        this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+    };
     this.move();
+    this.rotate();
     scene.add(this.mesh);
+}
+
+function MainBeams(scene, grid, section) {
+    this.section = section || new Section();
+    this.beams = [];
+    this.span = grid.spaceX > grid.spaceZ ? grid.spaceX : grid.spaceZ;
+    let index = 0;
+    let x = 0;
+    let z = 0;
+    if (this.span === grid.spaceZ) {
+        for (let i = 0; i < grid.numberInX; i++) {
+            for (let j = 0; j < grid.numberInZ - 1; j++) {
+                this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
+                z += this.span;
+                index++;
+            }
+            z = 0;
+            x += grid.spaceX;
+        }
+    } else {
+        console.log("else");
+        let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
+        for (let i = 0; i < grid.numberInZ; i++) {
+            for (let j = 0; j < grid.numberInX - 1; j++) {
+                this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
+                this.beams[index].rotate(rotation)
+                x += this.span;
+                index++;
+            }
+            x = 0;
+            z += grid.spaceZ;
+        }
+
+    }
+
 }
