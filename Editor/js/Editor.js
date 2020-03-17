@@ -122,33 +122,53 @@
         this.section = section || new Section();
         this.beams = [];
         this.span = grid.spaceX > grid.spaceZ ? grid.spaceX : grid.spaceZ;
+        this.space = 0;
         let index = 0;
         let x = 0;
         let z = 0;
         if (this.span === grid.spaceZ) {
-            for (let i = 0; i < grid.numberInX; i++) {
-                for (let j = 0; j < grid.numberInZ - 1; j++) {
-                    this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
-                    z += this.span;
-                    index++;
-                }
-                z = 0;
-                x += grid.spaceX;
-            }
-        } else {
-            console.log("else");
-            let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
-            for (let i = 0; i < grid.numberInZ; i++) {
-                for (let j = 0; j < grid.numberInX - 1; j++) {
-                    this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
-                    this.beams[index].rotate(rotation)
-                    x += this.span;
-                    index++;
-                }
-                x = 0;
-                z += grid.spaceZ;
-            }
+            /*if span of beam in grid space in z direction (blue direction) that means that
+            1-space = grid space in x direction
+            2-number of beams in z direction (parallel to span) = number of grids in z direction -1 (span between two grid line so minus one)
+            3-number of beams in x direction (paralle to space) = number of grids in x direction (draw beam on each grid)*/
+            this.space = grid.spaceX;
+            drawBeams.call(this, scene, grid.numberInX, grid.numberInZ - 1, this.space, this.span);
 
+        } else {
+            /*if span of beam in grid space in x direction (red direction) that means that
+            1-space = grid space in z direction
+            2-number of beams in x direction (parallel to span) = number of grids in z direction -1 (span between two grid line so minus one)
+            3-number of beams in z direction (paralle to space) = number of grids in x direction (draw beam on each grid)*/
+            this.space = grid.spaceZ;
+            console.log("else main")
+            console.log(grid.numberInZ); //5
+            let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
+            drawBeams.call(this, scene, grid.numberInX - 1, grid.numberInZ, this.span, this.space, null, rotation);
+
+        }
+
+    }
+
+    function drawBeams(scene, numberInX, numberInZ, xIncrement, zIncrement, color, rotation) {
+        //numberInX: number of beams in x direction
+        //numberInZ: number of beams in Z direction
+        //xIncrement is span or space for example: if main beam with span in x direction so xIncrement will be span.
+        //zIncrement is span or space for example if main beam with span in x direction so zIncrement will be the space
+        color = color || 0xff3300;
+        rotation = rotation || new THREE.Vector3(0, 0, 0);
+        let index = 0;
+        let x = 0;
+        let z = 0;
+        for (let i = 0; i < numberInZ; i++) {
+            for (let j = 0; j < numberInX; j++) {
+                this.beams[index] = new ISection(scene, this.section, new THREE.Vector3(x, 0, z), this.span);
+                this.beams[index].rotate(rotation);
+                this.beams[index].mesh.material.color.setHex(color);
+                index++;
+                x += xIncrement;
+            }
+            x = 0;
+            z += zIncrement;
         }
 
     }
@@ -163,31 +183,24 @@
         let x = 0;
         let z = 0;
         if (this.span === grid.spaceZ) {
+            /*if span is grid space in z direction (blue direction) that means that 
+            1-beam space is equal to grid space in x direction /(number of beams -1)
+            2-number of beams in z direction (parallel to the span) = number of grids in z direction -1 (span between two grid line so minus one)
+            3-number of beams in x direction (prependicular to span) = number of beams in panel * (number of grids in x direction-1)-(number of grids in x -2)
+            */
             this.space = grid.spaceX / (this.nBeams - 1);
-            for (let i = 0; i < this.nBeams * (grid.numberInX - 1) - (grid.numberInX - 2); i++) {
-                for (let j = 0; j < grid.numberInZ - 1; j++) {
-                    this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
-                    this.beams[index].mesh.material.color.setHex(0xdddddd);
-                    z += this.span;
-                    index++;
-                }
-                z = 0;
-                x += this.space;
-            }
+            drawBeams.call(this, scene, this.nBeams * (grid.numberInX - 1) - (grid.numberInX - 2), grid.numberInZ - 1, this.space, this.span, 0xdddddd);
+
         } else {
+            /*if span is grid space in x direction (blue direction) that means that 
+            1-beam space is equal to grid space in z direction /(number of beams -1)
+            2-number of beams in x direction (parallel to the span) = number of grids in x direction -1 (span between two grid line so minus one)
+            3-number of beams in z direction (prependicular to span) = number of beams in panel * (number of grids in z direction-1)-(number of grids in z -2)
+            */
+            console.log("else seconadary")
             this.space = grid.spaceZ / (this.nBeams - 1);
             let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
-            for (let i = 0; i < this.nBeams * (grid.numberInZ - 1) - (grid.numberInZ - 2); i++) {
-                for (let j = 0; j < grid.numberInX - 1; j++) {
-                    this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
-                    this.beams[index].mesh.material.color.setHex(0xdddddd);
-                    this.beams[index].rotate(rotation)
-                    x += this.span;
-                    index++;
-                }
-                x = 0;
-                z += this.space;
-            }
+            drawBeams.call(this, scene, grid.numberInX - 1, this.nBeams * (grid.numberInZ - 1) - (grid.numberInZ - 2), this.span, this.space, 0xdddddd, rotation);
 
         }
 
