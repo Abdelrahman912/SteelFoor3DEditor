@@ -41,7 +41,7 @@
         axes = new THREE.AxesHelper(500);
         scene.add(axes);
 
-        let myGrid = new Grid(scene, 50, 60, 4, 5);
+        let myGrid = new EDITOR.Grid(scene, 50, 60, 4, 5);
         //#endregion
         //#region Orbit controls
         orbitControls = new THREE.OrbitControls(camera, renderer.domElement); //renderer.domElement is the canvas
@@ -58,7 +58,9 @@
         // new ISection(scene, null, new THREE.Vector3(50, 0, 60), 60);
         // new ISection(scene, null, new THREE.Vector3(50, 0, 60 * 2), 60);
         // new ISection(scene, null, new THREE.Vector3(50, 0, 60 * 3), 60);
-        let mainBeams = new MainBeams(scene, myGrid);
+        let mainBeams = new EDITOR.MainBeams(scene, myGrid);
+        let secondaryBeams = new EDITOR.SecondaryBeams(scene, myGrid, 4, null);
+
         // mainBeams.beams[0].rotate(new THREE.Vector3(0, -Math.PI / 2), 0);
         //#endregion
 
