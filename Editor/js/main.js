@@ -7,6 +7,7 @@
     let directionalLight;
     let lightposition = [5, 5, 5];
     let coordX , coordZ , nodes , myGrid;
+    let mainBeams , secondaryBeams;
     //#endregion
 
     function init() {
@@ -53,7 +54,7 @@
         //#endregion
 
         //#region Drawing Beams
-        //let solid = new Solid(scene, null, null, new THREE.Vector3(0, -Math.PI / 2, 0), null);
+        // let solid = new Solid(scene, null, null, new THREE.Vector3(Math.PI / 2, 0, 0), null);
         // new ISection(scene, null, new THREE.Vector3(0, 0, 0), 60);
         // new ISection(scene, null, new THREE.Vector3(0, 0, 60), 60);
         // new ISection(scene, null, new THREE.Vector3(0, 0, 60 * 2), 60);
@@ -62,7 +63,6 @@
         // new ISection(scene, null, new THREE.Vector3(50, 0, 60), 60);
         // new ISection(scene, null, new THREE.Vector3(50, 0, 60 * 2), 60);
         // new ISection(scene, null, new THREE.Vector3(50, 0, 60 * 3), 60);
-        //let mainBeams = new MainBeams(scene, myGrid);
         // mainBeams.beams[0].rotate(new THREE.Vector3(0, -Math.PI / 2), 0);
         //#endregion
 
@@ -82,6 +82,9 @@
         }
         myGrid = new Grid(scene, coordX, coordZ, coordX.length, coordZ.length);
         nodes = createNodes(scene ,coordX , coordZ);
+        mainBeams = createMainBeams(scene, myGrid ,new Section(0.4,0.2,0.01,0.02));
+        secondaryBeams = createSecondaryBeams(scene, myGrid ,new Section(0.18,0.09,0.01,0.02));
+        //secondaryBeams = new MainBeams(scene , myGrid);
         camera.lookAt(0.5*coordX.reduce(sum, 0) , 0 , 0.5*coordZ.reduce(sum, 0))
     })
 

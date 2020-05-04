@@ -82,13 +82,13 @@ function Section(clearHeight, flangeWidth, webThickness, flangeThickness) {
     this.flangeThickness = flangeThickness || 0.2;
 }
 
-function ISection(scene, section, startPoint, length) {
+function ISection(scene, section, startPoint, length , rotation , color) {
     this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
-    this.rotation = new THREE.Vector3(0, 0, 0);
+    this.rotation = rotation || new THREE.Vector3(0, 0, 0);
     this.length = length || 100;
     this.section = section || new Section();
     let material = new THREE.MeshPhongMaterial({
-        color: 0xff0000,
+        color: color,
         side: THREE.DoubleSide
     });
     let shape = new THREE.Shape();
@@ -131,40 +131,100 @@ function ISection(scene, section, startPoint, length) {
     scene.add(this.mesh);
 }
 
-function MainBeams(scene, grid, section) {
-    this.section = section || new Section();
-    this.beams = [];
-    this.span = grid.spaceX > grid.spaceZ ? grid.spaceX : grid.spaceZ;
-    let index = 0;
-    let x = 0;
-    let z = 0;
-    if (this.span === grid.spaceZ) {
-        for (let i = 0; i < grid.numberInX; i++) {
-            for (let j = 0; j < grid.numberInZ - 1; j++) {
-                this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
-                z += this.span;
-                index++;
-            }
-            z = 0;
-            x += grid.spaceX;
+// function MainBeams(scene, grid, section) {
+//     this.section = section || new Section();
+//     this.beams = [];
+//     this.span = grid.spaceX > grid.spaceZ ? grid.spaceX : grid.spaceZ;
+//     if (this.span === grid.spaceZ) {
+//         let x = 0;
+//         for (let i = 0; i < grid.numberInX; i++) {
+//             x += grid.spaceX[i];
+//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(x, 0, 0), grid.spaceZ.reduce(sum, 0),null ,0xff0000);
+//         }
+//     } else {
+//         let z = 0;
+//         let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
+//         for (let i = 0; i < grid.numberInZ; i++) {
+//             z += grid.spaceZ[i];
+//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(0, 0, z), grid.spaceX.reduce(sum, 0) , rotation , 0xff0000);
+//         }
+//     }
+// }
+function createMainBeams(scene, grid, section) {
+    let span , rotation , startPoints = [];
+    if(grid.spaceX >= grid.spaceZ){
+        span = grid.spaceX.reduce(sum, 0);
+        let x = 0;
+        for (let i = 0; i < grid.spaceX.length; i++) {
+            x += grid.spaceX[i];
+            startPoints[i] = {x:x,y:0,z:0};            
         }
-    } else {
-        console.log("else");
-        let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
-        for (let i = 0; i < grid.numberInZ; i++) {
-            for (let j = 0; j < grid.numberInX - 1; j++) {
-                this.beams[index] = new ISection(scene, section, new THREE.Vector3(x, 0, z), this.span);
-                this.beams[index].rotate(rotation)
-                x += this.span;
-                index++;
-            }
-            x = 0;
-            z += grid.spaceZ;
-        }
-
     }
-
+    else{
+        span = grid.spaceZ.reduce(sum, 0);
+        let z = 0;
+        for (let i = 0; i < grid.spaceZ.length; i++) {
+            z += grid.spaceZ[i];
+            startPoints[i] = {x:0,y:0,z:z};            
+        }
+    }
+    return new Beams(scene , section , span , rotation , startPoints ,  0xff0000);
 }
+
+function Beams(scene , section , length , direction , startPoints , color){
+    this.section = section || new Section();
+    this.span = length;
+    this.beams = [];
+        for (let i = 0; i < startPoints.length; i++) {
+            this.beams[i] = new ISection(scene, section, startPoints[i],length,direction ,color);
+        }
+}
+
+function createSecondaryBeams(scene, grid, section) {
+    let span , rotation , startPoints = [] , distribution;
+    if(grid.spaceX < grid.spaceZ){
+        span = grid.spaceX.reduce(sum, 0);
+        distribution = grid.spaceZ.reduce(sum, 0)+2;
+        let x = 0;
+        for (let i = 0; x < distribution; i++) {
+            startPoints[i] = {x:x,y:0,z:0};            
+            x += 2;
+        }
+    }
+    else{
+        span = grid.spaceZ.reduce(sum, 0);
+        distribution = grid.spaceX.reduce(sum, 0)+2;
+        let z = 0;
+        rotation = new THREE.Vector3(0, Math.PI / 2, 0);
+        for (let i = 0; z <distribution; i++) {
+            startPoints[i] = {x:0,y:0,z:z};            
+            z += 2;
+        }
+    }
+    return new Beams(scene , section , span , rotation , startPoints ,  0x00ff00);
+}
+
+// function SecondaryBeams(scene, grid, section) {
+//     this.section = section || new Section();
+//     this.beams = [];
+//     this.span = grid.spaceZ < grid.spaceX ? grid.spaceZ : grid.spaceX;
+//     if (this.span === grid.spaceZ) {
+//         let x = 0;
+//         let wide= grid.spaceX.reduce(sum, 0)+2;
+//         for (let i = 0; x < wide; i++) {
+//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(x, 0, 0), grid.spaceZ.reduce(sum, 0), null , 0x00ff00);
+//             x += 2;
+//         }
+//     } else {
+//         let z = 0;
+//         let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
+//         let wide= grid.spaceZ.reduce(sum, 0)+2;
+//         for (let i = 0; z < wide; i++) {
+//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(0, 0, z), grid.spaceX.reduce(sum, 0),rotation, 0x00ff00);
+//             z += 2;
+//         }
+//     }
+// }
 
 function sum(a, b) {
     return a + b;
@@ -196,7 +256,7 @@ function getPoints(coordX, coordZ) {
 
 
 function Node(point) {
-    var geometry = new THREE.SphereGeometry(0.2, 32, 32);
+    var geometry = new THREE.SphereGeometry(0.05, 32, 32);
     var material = new THREE.MeshBasicMaterial({ color: 0x337ab7 });
     var node = new THREE.Mesh(geometry, material);
     node.position.set(point.x, point.y, point.z);
