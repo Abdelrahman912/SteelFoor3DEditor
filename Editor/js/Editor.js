@@ -57,23 +57,6 @@ function Line(startPoint, direction, length) {
     this.line.computeLineDistances();
 }
 
-// function Solid(scene, startPoint, dimensions, rotation, color) { //
-//     this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
-//     this.dimensions = dimensions || new THREE.Vector3(2, 0.1, 100);
-//     this.rotation = rotation || new THREE.Vector3(0, 0, 0);
-//     this.color = color || 0xffafaf;
-//     let geometry = new THREE.BoxGeometry(1, 1, 1);
-//     let material = new THREE.MeshPhongMaterial({
-//         color: this.color,
-//         side: THREE.DoubleSide
-//     });
-//     this.mesh = new THREE.Mesh(geometry, material);
-//     this.mesh.position.set(this.startPoint.x, this.startPoint.y, this.startPoint.z + this.dimensions.z / 2);
-//     this.mesh.scale.set(this.dimensions.x, this.dimensions.y, this.dimensions.z);
-//     this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
-//     this.mesh.userData = this;
-//     scene.add(this.mesh);
-// }
 
 
 function sum(a, b) {
@@ -81,17 +64,18 @@ function sum(a, b) {
 }
 
 
-function createNodes(scene, coordX, coordZ) {
+function createNodes(scene, pickingScene , coordX, coordZ) {
     let nodeGroup = new THREE.Group();
     let nodes = [];
     let points = getPoints(coordX, coordZ);
     for (let i = 0; i < points.length; i++) {
-        nodes.push(new Node(points[i]));
+        nodes.push(new Node(points[i],++id));
         nodeGroup.add(nodes[i].mesh);
+        window.idToObject[id] = nodes[i].mesh;
+        pickingScene.add(new PickingNode(nodes[i],id).mesh)
     }
     nodes.nodeGroup = nodeGroup;
     scene.add(nodeGroup);
-    console.log(scene)
     return nodes;
 }
 
@@ -109,18 +93,39 @@ function getPoints(coordX, coordZ) {
     return points
 }
 
-
-
 class Node {
-    constructor(point , support) {
+    constructor(point , id , support) {
         var geometry = new THREE.SphereGeometry(0.05, 32, 32);
-        var material = new THREE.MeshPhongMaterial({
+        const material = new THREE.MeshPhongMaterial({
             color: 0x337ab7,
-            //side: THREE.DoubleSide
+            //map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            alphaTest: 0.5,
         });
         // var material = new THREE.MeshBasicMaterial({ color: 0x337ab7 });
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.set(point.x, point.y, point.z);
+        this.mesh.userData.id = id;
         this.support = support;
+    }
+}
+
+class PickingNode {
+    constructor(node , id) {
+        let pickingMaterial = new THREE.MeshPhongMaterial({
+            emissive: new THREE.Color(id),
+            color: new THREE.Color(0, 0, 0),
+            specular: new THREE.Color(0, 0, 0),
+            //map: texture,
+            // transparent: true,
+            side: THREE.DoubleSide,
+            alphaTest: 0.5,
+            blending: THREE.NoBlending,
+        });
+        // var material = new THREE.MeshBasicMaterial({ color: 0x337ab7 });
+        this.mesh = new THREE.Mesh(node.mesh.geometry, pickingMaterial);
+        this.mesh.position.copy(node.mesh.position);
+        this.id
     }
 }

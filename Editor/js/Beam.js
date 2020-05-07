@@ -5,15 +5,15 @@ function Section(clearHeight, flangeWidth, webThickness, flangeThickness) {
     this.flangeThickness = flangeThickness || 0.2;
 }
 
-function ISection( section, startPoint, length , rotation , color) {
+function ISection(section, startPoint, length, rotation, material,id) {
     this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
     this.rotation = rotation || new THREE.Vector3(0, 0, 0);
     this.length = length || 100;
     this.section = section || new Section();
-    let material = new THREE.MeshPhongMaterial({
-        color: color,
-        side: THREE.DoubleSide
-    });
+    // let material = new THREE.MeshPhongMaterial({
+    //     color: color,
+    //     side: THREE.DoubleSide
+    // });
     let shape = new THREE.Shape();
     let shiftX = -this.section.flangeWidth / 2;
     let shiftY = -(this.section.clearHeight / 2 + this.section.flangeThickness);
@@ -41,6 +41,7 @@ function ISection( section, startPoint, length , rotation , color) {
     };
     let geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh.userData.id = id;
     this.move = function (position) {
         this.startPoint = position || this.startPoint;
         this.mesh.position.set(this.startPoint.x, this.startPoint.y, this.startPoint.z);
@@ -54,100 +55,118 @@ function ISection( section, startPoint, length , rotation , color) {
     // scene.add(this.mesh);
 }
 
-// function MainBeams(scene, grid, section) {
-//     this.section = section || new Section();
-//     this.beams = [];
-//     this.span = grid.spaceX > grid.spaceZ ? grid.spaceX : grid.spaceZ;
-//     if (this.span === grid.spaceZ) {
-//         let x = 0;
-//         for (let i = 0; i < grid.numberInX; i++) {
-//             x += grid.spaceX[i];
-//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(x, 0, 0), grid.spaceZ.reduce(sum, 0),null ,0xff0000);
-//         }
-//     } else {
-//         let z = 0;
-//         let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
-//         for (let i = 0; i < grid.numberInZ; i++) {
-//             z += grid.spaceZ[i];
-//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(0, 0, z), grid.spaceX.reduce(sum, 0) , rotation , 0xff0000);
-//         }
-//     }
-// }
-
-class Beam{
-    constructor(section , span , startPoint , rotation , color){
-        this.section = new ISection(section , startPoint , span , rotation , color);
+class Beam {
+    constructor(section, span, startPoint, rotation, material , id) {
+        this.section = new ISection(section, startPoint, span, rotation, material,id);
         this.span = span;
         this.startPoint = startPoint;
         this.endPoint = this.startPoint + span * rotation;
     }
 }
 
-function createMainBeams(scene, grid, section) {
-    let span , rotation , startPoints = [] , commulativeSpacing = 0 , mainBeams = [];
-    if(grid.spaceX >= grid.spaceZ){
-        span = grid.spaceX.reduce(sum, 0);
-        for (let i = 0; i < grid.spaceX.length; i++) {
-            commulativeSpacing += grid.spaceX[i];
-            mainBeams.push(new Beam(section , span , {x:commulativeSpacing,y:0,z:0} , rotation , 0xff0000));
-            scene.add(mainBeams[i].section.mesh);
-        }
+class PickingBeam {
+    constructor(beam, id) {
+        let material = new THREE.MeshPhongMaterial({
+            emissive: new THREE.Color(id),
+            color: new THREE.Color(0, 0, 0),
+            specular: new THREE.Color(0, 0, 0),
+            //map: texture,
+            // transparent: true,
+            side: THREE.DoubleSide,
+            alphaTest: 0.5,
+            blending: THREE.NoBlending,
+        });
+
+        this.mesh = new THREE.Mesh(beam.section.mesh.geometry, material);
+        this.mesh.position.copy(beam.section.mesh.position);
+        this.mesh.rotation.copy(beam.section.mesh.rotation);
     }
-    else{
-        span = grid.spaceZ.reduce(sum, 0);
+}
+
+
+function createMainBeams(scene, pickingScene, grid, section) {
+    let span, rotation, commulativeSpacing = 0, mainBeams = [];
+    if (grid.spaceX >= grid.spaceZ) {
+        span = grid.spaceX.reduce(sum, 0);
         rotation = new THREE.Vector3(0, Math.PI / 2, 0);
         for (let i = 0; i < grid.spaceZ.length; i++) {
+            let material = new THREE.MeshPhongMaterial({
+                color: 0xff0000,
+                //map: texture,
+                //transparent: true,
+                side: THREE.DoubleSide,
+                alphaTest: 0.5,
+            });
             commulativeSpacing += grid.spaceZ[i];
-            mainBeams.push(new Beam(section , span , {x:0,y:0,z:commulativeSpacing} , rotation , 0xff0000));
+            mainBeams.push(new Beam(section, span, { x: 0, y: 0, z: commulativeSpacing }, rotation, material , ++id));
             scene.add(mainBeams[i].section.mesh);
+            mainBeams[i].section.mesh.userData.beam = mainBeams[i];
+            window.idToObject[id] = mainBeams[i].section.mesh;
+            pickingScene.add(new PickingBeam(mainBeams[i], id).mesh);
+        }
+    }
+    else {
+        span = grid.spaceZ.reduce(sum, 0);
+        for (let i = 0; i < grid.spaceX.length; i++) {
+            let material = new THREE.MeshPhongMaterial({
+                color: 0xff0000,
+                //map: texture,
+                //transparent: true,
+                side: THREE.DoubleSide,
+                alphaTest: 0.5,
+            });
+            commulativeSpacing += grid.spaceX[i];
+            mainBeams.push(new Beam(section, span, { x: commulativeSpacing, y: 0, z: 0 }, rotation, material , ++id));
+            scene.add(mainBeams[i].section.mesh);
+            mainBeams[i].section.mesh.userData.beam = mainBeams[i];
+            window.idToObject[id] = mainBeams[i].section.mesh;
+            pickingScene.add(new PickingBeam(mainBeams[i], id).mesh);
         }
     }
     return mainBeams;
 }
 
 
-function createSecondaryBeams(scene, grid, section) {
-    let span , rotation , startPoints = [] , distribution , commulativeSpacing = 0 , secondaryBeams = [];
-    if(grid.spaceX < grid.spaceZ){
+function createSecondaryBeams(scene, pickingScene, grid, section) {
+    let span, rotation, distribution, commulativeSpacing = 0, secondaryBeams = [];
+    if (grid.spaceX < grid.spaceZ) {
         span = grid.spaceX.reduce(sum, 0);
-        distribution = grid.spaceZ.reduce(sum, 0)+2; //the distance that secBeams will be distributed over
+        distribution = grid.spaceZ.reduce(sum, 0) + 2; //the distance that secBeams will be distributed over
+        rotation = new THREE.Vector3(0, Math.PI / 2, 0);
         for (let i = 0; commulativeSpacing < distribution; i++) {
-            secondaryBeams.push(new Beam(section , span , {x:commulativeSpacing,y:0,z:0} , rotation , 0x00ff00));
-            scene.add(secondaryBeams[i].section.mesh);            
+            let material = new THREE.MeshPhongMaterial({
+                color: 0x00cc55,
+                //map: texture,
+                //transparent: true,
+                side: THREE.DoubleSide,
+                alphaTest: 0.5,
+            });
+            secondaryBeams.push(new Beam(section, span, { x: 0, y: 0, z: commulativeSpacing }, rotation, material , ++id));
+            scene.add(secondaryBeams[i].section.mesh);
+            secondaryBeams[i].section.mesh.userData.beam = secondaryBeams[i];
+            window.idToObject[id] = secondaryBeams[i].section.mesh;
+            pickingScene.add(new PickingBeam(secondaryBeams[i], id).mesh);
             commulativeSpacing += 2;
         }
     }
-    else{
+    else {
         span = grid.spaceZ.reduce(sum, 0);
-        distribution = grid.spaceX.reduce(sum, 0)+2;
-        rotation = new THREE.Vector3(0, Math.PI / 2, 0);
-        for (let i = 0; commulativeSpacing <distribution; i++) {
-            secondaryBeams.push(new Beam(section , span , {x:0,y:0,z:commulativeSpacing} , rotation , 0x00ff00))
-            scene.add(secondaryBeams[i].section.mesh);            
+        distribution = grid.spaceX.reduce(sum, 0) + 2;
+        for (let i = 0; commulativeSpacing < distribution; i++) {
+            let material = new THREE.MeshPhongMaterial({
+                color: 0x00cc55,
+                //map: texture,
+                //transparent: true,
+                side: THREE.DoubleSide,
+                alphaTest: 0.5,
+            });
+            secondaryBeams.push(new Beam(section, span, { x: commulativeSpacing, y: 0, z: 0 }, rotation, material , ++id))
+            scene.add(secondaryBeams[i].section.mesh);
+            secondaryBeams[i].section.mesh.userData.beam = secondaryBeams[i];
+            window.idToObject[id] = secondaryBeams[i].section.mesh;
+            pickingScene.add(new PickingBeam(secondaryBeams[i], id).mesh);
             commulativeSpacing += 2;
         }
     }
     return secondaryBeams;
 }
-
-// function SecondaryBeams(scene, grid, section) {
-//     this.section = section || new Section();
-//     this.beams = [];
-//     this.span = grid.spaceZ < grid.spaceX ? grid.spaceZ : grid.spaceX;
-//     if (this.span === grid.spaceZ) {
-//         let x = 0;
-//         let wide= grid.spaceX.reduce(sum, 0)+2;
-//         for (let i = 0; x < wide; i++) {
-//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(x, 0, 0), grid.spaceZ.reduce(sum, 0), null , 0x00ff00);
-//             x += 2;
-//         }
-//     } else {
-//         let z = 0;
-//         let rotation = new THREE.Vector3(0, Math.PI / 2, 0)
-//         let wide= grid.spaceZ.reduce(sum, 0)+2;
-//         for (let i = 0; z < wide; i++) {
-//             this.beams[i] = new ISection(scene, section, new THREE.Vector3(0, 0, z), grid.spaceX.reduce(sum, 0),rotation, 0x00ff00);
-//             z += 2;
-//         }
-//     }
-// }

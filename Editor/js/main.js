@@ -1,3 +1,5 @@
+//https://threejsfundamentals.org/threejs/lessons/threejs-picking.html
+
 (function () {
     //#region  Shared variables
     let camera, renderer;
@@ -10,10 +12,14 @@
     let mainBeams, secondaryBeams;
     let canvas;
     const pickPosition = { x: 0, y: 0 };
-    const selectPosition = { x: 0, y: 0 };
-    const pickHelper = new PickHelper();
+    const pickHelper = new GPUPickHelper();
+    window.id = 0, window.idToObject = [];
+
     clearPickPosition();
     //#endregion
+
+    let pickingScene = new THREE.Scene();
+    pickingScene.background = new THREE.Color(0);
 
     function init() {
         //#region 1- Creating Scene
@@ -35,7 +41,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight); //setting width and height of canvas
         document.body.appendChild(renderer.domElement); //append canvas tag to html
         //#endregion
-        canvas = document.getElementsByTagName('canvas')[0]
+        canvas = renderer.domElement;
         //#region Light
         directionalLight = new THREE.DirectionalLight(0xffffff, 1);
         directionalLight.position.set(lightposition[0], lightposition[1], lightposition[2]);
@@ -57,21 +63,6 @@
         //#region Orbit controls
         orbitControls = new THREE.OrbitControls(camera, renderer.domElement); //renderer.domElement is the canvas
         //#endregion
-
-        //#region Drawing Beams
-        // let solid = new Solid(scene, null, null, new THREE.Vector3(Math.PI / 2, 0, 0), null);
-        // new ISection(scene, null, new THREE.Vector3(0, 0, 0), 60);
-        // new ISection(scene, null, new THREE.Vector3(0, 0, 60), 60);
-        // new ISection(scene, null, new THREE.Vector3(0, 0, 60 * 2), 60);
-        // new ISection(scene, null, new THREE.Vector3(0, 0, 60 * 3), 60);
-        // new ISection(scene, null, new THREE.Vector3(50, 0, 0), 60);
-        // new ISection(scene, null, new THREE.Vector3(50, 0, 60), 60);
-        // new ISection(scene, null, new THREE.Vector3(50, 0, 60 * 2), 60);
-        // new ISection(scene, null, new THREE.Vector3(50, 0, 60 * 3), 60);
-        // mainBeams.beams[0].rotate(new THREE.Vector3(0, -Math.PI / 2), 0);
-        //#endregion
-
-
     }
 
     $('#createGrids').click(function () {
@@ -80,22 +71,25 @@
         coordZ = $('#spaceZ').val().split(',').map(s => parseInt(s));
         coordX.unshift(0);
         coordZ.unshift(0);
+        let editGrids = false;
         if (myGrid) { //Check if it is editing or creating
-            scene.remove(nodes)
-            scene.remove(myGrid.linesInX)
-            scene.remove(myGrid.linesInZ)
+            scene.remove(nodes);
+            scene.remove(myGrid.linesInX);
+            scene.remove(myGrid.linesInZ);
+            editGrids = true;
         }
         myGrid = new Grid(scene, coordX, coordZ, coordX.length, coordZ.length);
-        nodes = createNodes(scene, coordX, coordZ);
-        mainBeams = createMainBeams(scene, myGrid, new Section(0.4, 0.2, 0.01, 0.02));
-        secondaryBeams = createSecondaryBeams(scene, myGrid, new Section(0.18, 0.09, 0.01, 0.02));
-        camera.lookAt(0.5 * coordX.reduce(sum, 0), 0, 0.5 * coordZ.reduce(sum, 0))
+        nodes = createNodes(scene, pickingScene, coordX, coordZ);
+        if (!editGrids) {
+            mainBeams = createMainBeams(scene, pickingScene, myGrid, new Section(0.4, 0.2, 0.01, 0.02));
+            secondaryBeams = createSecondaryBeams(scene, pickingScene, myGrid, new Section(0.18, 0.09, 0.01, 0.02));
+        }
     })
 
     //Edit the grids and nodes after creation
     window.editGrids = function () {
-        $('#spaceX').val(coordX.join())
-        $('#spaceZ').val(coordZ.join())
+        $('#spaceX').val(coordX.join());
+        $('#spaceZ').val(coordZ.join());
         $('#exampleModal').modal('show');
     }
 
@@ -103,7 +97,7 @@
 
     }
 
-   
+
     function getCanvasRelativePosition(event) {
         const rect = canvas.getBoundingClientRect();
         return {
@@ -111,20 +105,12 @@
             y: (event.clientY - rect.top) * canvas.height / rect.height,
         };
     }
-    
+
     function setPickPosition(event) {
         const pos = getCanvasRelativePosition(event);
-        pickPosition.x = (pos.x / canvas.width) * 2 - 1;
-        pickPosition.y = (pos.y / canvas.height) * -2 + 1;  // note we flip Y
-        pickHelper.pick(pickPosition , scene, camera,scene.children);
-
+        pickPosition.x = pos.x;
+        pickPosition.y = pos.y;
     }
-    
-    // function setSelectPosition(event) {
-    //     const pos = getCanvasRelativePosition(event);
-    //     selectPosition.x = (pos.x / canvas.width) * 2 - 1;
-    //     selectPosition.y = (pos.y / canvas.height) * -2 + 1;  // note we flip Y
-    // }
 
     function clearPickPosition() {
         // unlike the mouse which always has a position
@@ -134,51 +120,6 @@
         pickPosition.x = -100000;
         pickPosition.y = -100000;
     }
-    //window.addEventListener('mousemove', setPickPosition);
-    window.addEventListener('click', setPickPosition);
-    window.addEventListener('keyup', Delete);
-
-    function Delete(event) {
-        if(event.key === 'Delete' && pickHelper.pickedObject)
-            scene.remove(pickHelper.pickedObject)
-        // else if(event.key === 'c'){
-        //     alert('lklkl')
-        //     Draw()
-        // }
-    }
-
-    // async function Draw() {
-    //     let drawPoints = [];
-    //     while (drawPoints.length<2) {
-    //         if(pickHelper.pickedObject){
-    //             if(pickHelper.pickedObject.geometry instanceof THREE.SphereGeometry)
-    //                 drawPoints.push(pickHelper.pickedObject)
-    //                 pickHelper.pickedObject = null
-    //         }
-    //     }
-    //     debugger
-    //     let dir = new THREE.Vector3().subVectors( drawPoints[0].position, drawPoints[1].position ).normalize(); // create once an reuse it
-    //     let span = drawPoints[0].position.distanceTo(drawPoints[1].position);
-    //     let beam = new Beam(null,span , drawPoints[0].position ,dir , 0x0000ff);
-    //     scene.add(beam.section.mesh)
-    //     console.log(drawPoints)
-    // }
-    // window.addEventListener('mouseout', clearPickPosition);
-    // window.addEventListener('mouseleave', clearPickPosition);
-    
-    // window.addEventListener('touchstart', (event) => {
-    //     // prevent the window from scrolling
-    //     event.preventDefault();
-    //     setPickPosition(event.touches[0]);
-    // }, { passive: false });
-    
-    // window.addEventListener('touchmove', (event) => {
-    //     setPickPosition(event.touches[0]);
-    // });
-    
-    // window.addEventListener('touchend', clearPickPosition);
-
-
 
     function loop(time) {
         time = time / 1000;
@@ -187,12 +128,53 @@
         // pickHelper.pick(pickPosition , scene, camera, time);
         requestAnimationFrame(loop);
         update();
+        pickHelper.pick(pickPosition, renderer, pickingScene, camera);
         renderer.render(scene, camera);
-
     }
 
     init();
     loop(0);
 
-    
+    canvas.addEventListener('mousemove', function () {
+        setPickPosition(event);
+        pickHelper.pick(pickPosition, renderer, pickingScene, camera);
+
+    });
+    canvas.addEventListener('mouseout', clearPickPosition);
+    canvas.addEventListener('mouseleave', clearPickPosition);
+    canvas.addEventListener('click', function (event) {
+        setPickPosition(event);
+        pickHelper.select(pickPosition, renderer, pickingScene, camera);
+    });
+
+    window.addEventListener('keyup', function (event) {
+        if (pickHelper.selectedObject) {
+            switch (event.key) {
+                case 'Delete':
+                    scene.remove(pickHelper.selectedObject);
+                    nodes.nodeGroup.remove(pickHelper.selectedObject);
+                    break;
+
+                case 'm':
+                    pickHelper.selectedObject.translateX(parseFloat($('#x').val()) || 0);
+                    pickHelper.selectedObject.translateY(parseFloat($('#y').val()) || 0);
+                    pickHelper.selectedObject.translateZ(parseFloat($('#z').val()) || 0);
+                    pickingScene.children[pickHelper.selectedObject.userData.id - 1].position.copy(pickHelper.selectedObject.position)
+                    break;
+                case 'c':
+                    let beam = new Beam(pickHelper.selectedObject.userData.beam.section.section, 
+                        pickHelper.selectedObject.userData.beam.span, pickHelper.selectedObject.position.clone(), 
+                        pickHelper.selectedObject.rotation.clone(), pickHelper.selectedObject.material.clone(), ++id);
+
+                    beam.section.mesh.translateX(parseFloat($('#x').val()) || 0);
+                    beam.section.mesh.translateY(parseFloat($('#y').val()) || 0);
+                    beam.section.mesh.translateZ(parseFloat($('#z').val()) || 0);
+                    scene.add(beam.section.mesh)
+                    idToObject[id] = beam.section.mesh;
+                    let pickingBeam = new PickingBeam(beam, id);
+                    pickingScene.add(pickingBeam.mesh);
+                    break;
+            }
+        }
+    });
 })();
