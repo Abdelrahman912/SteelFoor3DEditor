@@ -5,15 +5,11 @@ function Section(clearHeight, flangeWidth, webThickness, flangeThickness) {
     this.flangeThickness = flangeThickness || 0.2;
 }
 
-function ISection(section, startPoint, length, rotation, material,id) {
+function ISection(section, startPoint, length, rotation, material, id, path) {
     this.startPoint = startPoint || new THREE.Vector3(0, 0, 0);
     this.rotation = rotation || new THREE.Vector3(0, 0, 0);
-    this.length = length || 100;
+    this.length = length || 5;
     this.section = section || new Section();
-    // let material = new THREE.MeshPhongMaterial({
-    //     color: color,
-    //     side: THREE.DoubleSide
-    // });
     let shape = new THREE.Shape();
     let shiftX = -this.section.flangeWidth / 2;
     let shiftY = -(this.section.clearHeight / 2 + this.section.flangeThickness);
@@ -34,30 +30,53 @@ function ISection(section, startPoint, length, rotation, material,id) {
         steps: 2,
         depth: this.length,
         bevelEnabled: false,
-        bevelThickness: 1,
-        bevelSize: 1,
-        bevelOffset: 0,
-        bevelSegments: 1
+        // bevelThickness: 1,
+        // bevelSize: 1,
+        // bevelOffset: 0,
+        // bevelSegments: 1,
+        extrudePath: path
     };
     let geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.userData.id = id;
     this.move = function (position) {
-        this.startPoint = position || this.startPoint;
-        this.mesh.position.set(this.startPoint.x, this.startPoint.y, this.startPoint.z);
+        position = position || new THREE.Vector3();
+        if (!path) 
+            this.mesh.position.copy(position);
     };
     this.rotate = function (rotation) {
         this.rotation = rotation || this.rotation;
-        this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+
+        if (!path)
+            this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
     };
-    this.move();
-    this.rotate();
+    this.move(this.startPoint);
+    this.rotate(this.rotation);
     // scene.add(this.mesh);
 }
 
+function drawBeamByTwoPoints(start, end) {
+    let span = null;
+    //let rotation = (new THREE.Vector3()).subVectors(end , start).normalize().multiplyScalar(Math.PI/2);
+    let path = new THREE.LineCurve3(start, end);
+    let beam = new Beam(null, span, start, null, new THREE.MeshPhongMaterial({
+        emissive: new THREE.Color(id),
+        color: new THREE.Color(0, 0, 0),
+        specular: new THREE.Color(0, 0, 0),
+        side: THREE.DoubleSide,
+        alphaTest: 0.5,
+        blending: THREE.NoBlending,
+    }), ++id, path);
+    scene.add(beam.section.mesh);
+    idToObject[id] = beam.section.mesh;
+    let pickingBeam = new PickingBeam(beam, id);
+    pickingScene.add(pickingBeam.mesh)
+    console.log(beam.section.mesh.userData.pickingBeam)
+}
+
 class Beam {
-    constructor(section, span, startPoint, rotation, material , id) {
-        this.section = new ISection(section, startPoint, span, rotation, material,id);
+    constructor(section, span, startPoint, rotation, material, id, path) {
+        this.section = new ISection(section, startPoint, span, rotation, material, id, path);
         this.span = span;
         this.startPoint = startPoint;
         this.endPoint = this.startPoint + span * rotation;
@@ -80,6 +99,7 @@ class PickingBeam {
         this.mesh = new THREE.Mesh(beam.section.mesh.geometry, material);
         this.mesh.position.copy(beam.section.mesh.position);
         this.mesh.rotation.copy(beam.section.mesh.rotation);
+        beam.section.mesh.userData.picking = this.mesh;
     }
 }
 
@@ -98,7 +118,7 @@ function createMainBeams(scene, pickingScene, grid, section) {
                 alphaTest: 0.5,
             });
             commulativeSpacing += grid.spaceZ[i];
-            mainBeams.push(new Beam(section, span, { x: 0, y: 0, z: commulativeSpacing }, rotation, material , ++id));
+            mainBeams.push(new Beam(section, span, { x: 0, y: 0, z: commulativeSpacing }, rotation, material, ++id));
             scene.add(mainBeams[i].section.mesh);
             mainBeams[i].section.mesh.userData.beam = mainBeams[i];
             window.idToObject[id] = mainBeams[i].section.mesh;
@@ -116,7 +136,7 @@ function createMainBeams(scene, pickingScene, grid, section) {
                 alphaTest: 0.5,
             });
             commulativeSpacing += grid.spaceX[i];
-            mainBeams.push(new Beam(section, span, { x: commulativeSpacing, y: 0, z: 0 }, rotation, material , ++id));
+            mainBeams.push(new Beam(section, span, { x: commulativeSpacing, y: 0, z: 0 }, rotation, material, ++id));
             scene.add(mainBeams[i].section.mesh);
             mainBeams[i].section.mesh.userData.beam = mainBeams[i];
             window.idToObject[id] = mainBeams[i].section.mesh;
@@ -141,7 +161,7 @@ function createSecondaryBeams(scene, pickingScene, grid, section) {
                 side: THREE.DoubleSide,
                 alphaTest: 0.5,
             });
-            secondaryBeams.push(new Beam(section, span, { x: 0, y: 0, z: commulativeSpacing }, rotation, material , ++id));
+            secondaryBeams.push(new Beam(section, span, { x: 0, y: 0, z: commulativeSpacing }, rotation, material, ++id));
             scene.add(secondaryBeams[i].section.mesh);
             secondaryBeams[i].section.mesh.userData.beam = secondaryBeams[i];
             window.idToObject[id] = secondaryBeams[i].section.mesh;
@@ -160,7 +180,7 @@ function createSecondaryBeams(scene, pickingScene, grid, section) {
                 side: THREE.DoubleSide,
                 alphaTest: 0.5,
             });
-            secondaryBeams.push(new Beam(section, span, { x: commulativeSpacing, y: 0, z: 0 }, rotation, material , ++id))
+            secondaryBeams.push(new Beam(section, span, { x: commulativeSpacing, y: 0, z: 0 }, rotation, material, ++id))
             scene.add(secondaryBeams[i].section.mesh);
             secondaryBeams[i].section.mesh.userData.beam = secondaryBeams[i];
             window.idToObject[id] = secondaryBeams[i].section.mesh;

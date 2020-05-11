@@ -14,11 +14,11 @@
     const pickPosition = { x: 0, y: 0 };
     const pickHelper = new GPUPickHelper();
     window.id = 0, window.idToObject = [];
-
+    window.draw = false , drawingPoints = [];
     clearPickPosition();
     //#endregion
 
-    let pickingScene = new THREE.Scene();
+    window.pickingScene = new THREE.Scene();
     pickingScene.background = new THREE.Color(0);
 
     function init() {
@@ -138,20 +138,32 @@
     canvas.addEventListener('mousemove', function () {
         setPickPosition(event);
         pickHelper.pick(pickPosition, renderer, pickingScene, camera);
-
     });
+
     canvas.addEventListener('mouseout', clearPickPosition);
     canvas.addEventListener('mouseleave', clearPickPosition);
     canvas.addEventListener('click', function (event) {
         setPickPosition(event);
         pickHelper.select(pickPosition, renderer, pickingScene, camera);
+        if(draw)
+        {
+            if(pickHelper.selectedObject && pickHelper.selectedObject.geometry instanceof THREE.SphereGeometry){
+                drawingPoints.push(pickHelper.selectedObject.position)
+                pickHelper.selectedObject = null;
+                if(drawingPoints.length === 2){
+                    drawBeamByTwoPoints(drawingPoints[0],drawingPoints[1]);
+                    drawingPoints = [];
+                }
+            }
+        }
     });
 
     window.addEventListener('keyup', function (event) {
-        if (pickHelper.selectedObject) {
+        //if (pickHelper.selectedObject) {
             switch (event.key) {
                 case 'Delete':
                     scene.remove(pickHelper.selectedObject);
+                    pickingScene.remove(pickHelper.selectedObject.userData.picking)
                     nodes.nodeGroup.remove(pickHelper.selectedObject);
                     break;
 
@@ -159,22 +171,40 @@
                     pickHelper.selectedObject.translateX(parseFloat($('#x').val()) || 0);
                     pickHelper.selectedObject.translateY(parseFloat($('#y').val()) || 0);
                     pickHelper.selectedObject.translateZ(parseFloat($('#z').val()) || 0);
-                    pickingScene.children[pickHelper.selectedObject.userData.id - 1].position.copy(pickHelper.selectedObject.position)
+                    pickHelper.selectedObject.userData.picking.position.copy(pickHelper.selectedObject.position)
                     break;
                 case 'c':
-                    let beam = new Beam(pickHelper.selectedObject.userData.beam.section.section, 
-                        pickHelper.selectedObject.userData.beam.span, pickHelper.selectedObject.position.clone(), 
-                        pickHelper.selectedObject.rotation.clone(), pickHelper.selectedObject.material.clone(), ++id);
+                    if (pickHelper.selectedObject.geometry instanceof THREE.ExtrudeGeometry) {
+                        let beam = new Beam(pickHelper.selectedObject.userData.beam.section.section, 
+                            pickHelper.selectedObject.userData.beam.span, pickHelper.selectedObject.position.clone(), 
+                            pickHelper.selectedObject.rotation.clone(), pickHelper.selectedObject.material.clone(), ++id);
+                        beam.section.mesh.translateX(parseFloat($('#x').val()) || 0);
+                        beam.section.mesh.translateY(parseFloat($('#y').val()) || 0);
+                        beam.section.mesh.translateZ(parseFloat($('#z').val()) || 0);
+                        scene.add(beam.section.mesh)
+                        idToObject[id] = beam.section.mesh;
+                        let pickingBeam = new PickingBeam(beam, id);
+                        pickingScene.add(pickingBeam.mesh);
+                        
+                    }
+                    else{
+                        let node = new Node(pickHelper.selectedObject.position , ++id);
+                        node.mesh.translateX(parseFloat($('#x').val()) || 0);
+                        node.mesh.translateY(parseFloat($('#y').val()) || 0);
+                        node.mesh.translateZ(parseFloat($('#z').val()) || 0);
+                        nodes.nodeGroup.add(node.mesh);
+                        nodes.push(node);
+                        idToObject[id] = node.mesh;
+                        let pickingNode = new PickingNode(node , id);
+                        pickingScene.add(pickingNode.mesh);
+                    }
+                    
+                    break;
 
-                    beam.section.mesh.translateX(parseFloat($('#x').val()) || 0);
-                    beam.section.mesh.translateY(parseFloat($('#y').val()) || 0);
-                    beam.section.mesh.translateZ(parseFloat($('#z').val()) || 0);
-                    scene.add(beam.section.mesh)
-                    idToObject[id] = beam.section.mesh;
-                    let pickingBeam = new PickingBeam(beam, id);
-                    pickingScene.add(pickingBeam.mesh);
+                case 'd':
+                        draw = draw ? false : true;
                     break;
             }
-        }
+        //}
     });
 })();

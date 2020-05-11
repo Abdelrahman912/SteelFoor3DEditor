@@ -126,6 +126,6 @@ class PickingNode {
         // var material = new THREE.MeshBasicMaterial({ color: 0x337ab7 });
         this.mesh = new THREE.Mesh(node.mesh.geometry, pickingMaterial);
         this.mesh.position.copy(node.mesh.position);
-        this.id
+        node.mesh.userData.picking = this.mesh
     }
 }
